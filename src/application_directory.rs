@@ -69,3 +69,19 @@ pub fn create_default_data_directories() {
     }
 }
 
+pub fn get_input_csv_files() -> Vec<PathBuf> {
+    let mut csv_files = Vec::new();
+
+    let input_csv_path = get_data_directory_path(&DataDirectory::InputCsv);
+    for entry in fs::read_dir(&input_csv_path).expect("Unable to read input csv directory.") {
+        if let Ok(entry) = entry {
+            let path = entry.path();
+            if path.as_path().extension().unwrap() == "csv"  {
+                println!("{:?}", path);
+                csv_files.push(path);
+            }
+        }
+    }
+
+    csv_files
+}
