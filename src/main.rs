@@ -1,3 +1,5 @@
+
+mod application_directory;
 fn main() {
-    println!("Hello, world!");
+    application_directory::create_default_data_directories();
 }
