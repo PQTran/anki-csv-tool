@@ -64,7 +64,7 @@ fn blacklist_contains(records: &Vec<Record>, id: &str) -> bool {
 //     record
 // }
 
-pub fn select_from_blacklist_audio_menu(csv_records: &mut Vec<Record>) -> Vec<&Record> {
+pub fn select_from_blacklist_audio_menu(csv_records: &mut Vec<Record>) {
     print_record_characters(&csv_records);
 
     println!("Blacklist: [Enter] to continue, [-] to pop last selection]");
@@ -98,6 +98,4 @@ pub fn select_from_blacklist_audio_menu(csv_records: &mut Vec<Record>) -> Vec<&R
             }
         }
     }
-
-    get_blacklist_from_records(csv_records)
 }

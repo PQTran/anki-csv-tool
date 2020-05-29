@@ -5,6 +5,7 @@ use std::error::Error;
 use std::io;
 use std::fs;
 
+#[derive(Clone, Copy)]
 pub enum DataDirectory {
     Base,
     Input,
@@ -40,14 +41,14 @@ impl ApplicationFile {
     }
 }
 
-pub fn get_data_directory_path(dir: &DataDirectory) -> PathBuf {
+pub fn get_data_directory_path(dir: DataDirectory) -> PathBuf {
     use DataDirectory::*;
 
     let proj_dirs = ProjectDirs::from("", "", "Anki-Csv-Tool").expect("Unable to retrieve app directory.");
     let base_dir = proj_dirs.data_dir().to_str().unwrap();
 
     let mut dir_buf = PathBuf::from(base_dir);
-    match &*dir {
+    match dir {
         Base => {},
         Input => {
             dir_buf.push("input");
@@ -85,7 +86,7 @@ pub fn create_default_data_directories() -> Result<(), Box<dyn Error>> {
     use DataDirectory::*;
     let dirs = [Base, Input, InputCsv, Output, OutputCsv, OutputAudio];
     for dir in dirs.iter() {
-        create_directory(get_data_directory_path(dir).as_path())?;
+        create_directory(get_data_directory_path(*dir).as_path())?;
     }
 
     Ok(())
@@ -96,7 +97,7 @@ pub fn get_input_csv_files() -> Vec<ApplicationFile> {
     let mut csv_files = Vec::new();
     let mut file_index = 1;
 
-    let input_csv_path = get_data_directory_path(&DataDirectory::InputCsv);
+    let input_csv_path = get_data_directory_path(DataDirectory::InputCsv);
     for read_dir in fs::read_dir(&input_csv_path).expect("Unable to read input csv directory.") {
         if let Ok(dir_entry) = read_dir {
             let path = dir_entry.path();

@@ -1,6 +1,6 @@
 use read_input::prelude::*;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum Phonetics {
     Pinyin,
     Zhuyin
