@@ -12,6 +12,7 @@ serde = "1.0"
 serde_derive = "1.0"
 directories = "2.0"
 read_input="0.8"
-pinyin_zhuyin = "0.1"
 tts-urls = "0.2"
 reqwest = { version = "0.10", features = ["blocking"] }
+zhuyin = { path = "../rust/zhuyin" }
+colored = "2.0"

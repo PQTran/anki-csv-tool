@@ -1,3 +1,5 @@
+use crate::models::{ApplicationFile, DataDirectory};
+use directories::BaseDirs;
 use directories::ProjectDirs;
 use std::path::PathBuf;
 use std::path::Path;
@@ -5,40 +7,13 @@ use std::error::Error;
 use std::io;
 use std::fs;
 
-#[derive(Clone, Copy)]
-pub enum DataDirectory {
-    Base,
-    Input,
-    InputCsv,
-    Output,
-    OutputCsv,
-    OutputAudio
-}
-
-#[derive(Debug, PartialEq, Clone)]
-pub struct ApplicationFile {
-    key: String,
-    file_path: PathBuf
-}
-
-impl ApplicationFile {
-    fn new(key: String, file_path: PathBuf) -> Self {
-        Self { key, file_path }
-    }
-
-    pub fn get_key(&self) -> &str {
-        &self.key
-    }
-
-    pub fn get_file_name(&self) -> &str {
-        let path = self.file_path.as_path();
-        let file_name = path.file_name().unwrap();
-        file_name.to_str().unwrap()
-    }
-
-    pub fn get_file_path(&self) -> &PathBuf {
-        &self.file_path
-    }
+pub fn get_anki_audio_path() -> PathBuf {
+    let base_dirs = BaseDirs::new().unwrap();
+    let mut audio_path = base_dirs.data_local_dir().to_path_buf();
+    audio_path.push("Anki2");
+    audio_path.push("pqtran");
+    audio_path.push("collection.media");
+    audio_path
 }
 
 pub fn get_data_directory_path(dir: DataDirectory) -> PathBuf {
@@ -73,8 +48,8 @@ pub fn get_data_directory_path(dir: DataDirectory) -> PathBuf {
     dir_buf
 }
 
-fn create_directory(path: &Path) -> io::Result<()> {
-    if ! path.is_dir() {
+fn _create_directory(path: &Path) -> io::Result<()> {
+    if !path.is_dir() {
         fs::create_dir(path)?;
         println!("Created dir: {}", path.to_str().unwrap());
     }
@@ -86,28 +61,40 @@ pub fn create_default_data_directories() -> Result<(), Box<dyn Error>> {
     use DataDirectory::*;
     let dirs = [Base, Input, InputCsv, Output, OutputCsv, OutputAudio];
     for dir in dirs.iter() {
-        create_directory(get_data_directory_path(*dir).as_path())?;
+        _create_directory(get_data_directory_path(*dir).as_path())?;
     }
 
     Ok(())
 }
 
+fn _get_initial_key() -> String {
+    "1".to_string()
+}
+
+fn _get_next_key(s: &str) -> String {
+    let mut num: u8 = s.parse().unwrap();
+    num += 1;
+    num.to_string()
+}
+
+// has 2 logic, one for path and one for key
 pub fn get_input_csv_files() -> Vec<ApplicationFile> {
     const CSV_EXTENSION: &str = "csv";
     let mut csv_files = Vec::new();
-    let mut file_index = 1;
+    let mut key = _get_initial_key();
+
 
     let input_csv_path = get_data_directory_path(DataDirectory::InputCsv);
-    for read_dir in fs::read_dir(&input_csv_path).expect("Unable to read input csv directory.") {
-        if let Ok(dir_entry) = read_dir {
-            let path = dir_entry.path();
-            if let Some(extension) = path.as_path().extension() {
-                let extension = extension.to_str().unwrap();
-                if extension.to_lowercase() == CSV_EXTENSION {
-                    let file = ApplicationFile::new(file_index.to_string(), path);
+    for entry in fs::read_dir(&input_csv_path).expect("Unable to read input csv directory.") {
+        if let Ok(entry) = entry {
+            let path = entry.path();
+            let extension = path.extension().unwrap_or_default();
+            if let Some(extension_str) = extension.to_str() {
+                if extension_str.to_lowercase() == CSV_EXTENSION {
+                    let file = ApplicationFile::new(key.clone(), path);
                     csv_files.push(file);
 
-                    file_index += 1;
+                    key = _get_next_key(&key);
                 }
             }
         }

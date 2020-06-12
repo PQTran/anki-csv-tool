@@ -1,28 +1,28 @@
-use crate::csv_reader_writer::Record;
-use crate::file_menu::SelectionOption;
+use crate::models::Record;
+use crate::models::SelectionOption;
 use read_input::prelude::*;
+use std::collections::HashMap;
 
-fn print_record_characters(records: &Vec<Record>) {
+fn _print_record_characters(options: &Vec<SelectionOption>) {
     const CHUNK_SIZE: usize = 6;
-
-    let options = records.iter().map(|record| {
-        SelectionOption::new(record.get_id().clone(), record.get_character().clone())
-    }).collect();
-
-    SelectionOption::print_in_chunks(&options, CHUNK_SIZE);
+    SelectionOption::print_in_chunks(options, CHUNK_SIZE);
 }
 
-fn get_blacklist_record_prompt(records: &Vec<Record>) -> String {
+fn _get_blacklist_prompt(options: &Vec<SelectionOption>) -> String {
     const DEFAULT_PROMPT: &str = ">>> ";
     const BLACKLIST_PROMPT: &str = " >> ";
     let mut prompt = String::new();
 
-    let blacklist_records = get_blacklist_from_records(records);
-    for (index, record) in blacklist_records.iter().enumerate() {
+    let iter = options.iter()
+        .filter(|x| x.get_selected())
+        .map(|x| x.get_value())
+        .enumerate();
+
+    for (index, character) in iter {
         if index == 0 {
-            prompt += &format!("[{}]", record.get_character());
+            prompt += &format!("[{}]", character);
         } else {
-            prompt += &format!(", [{}]", record.get_character());
+            prompt += &format!(", [{}]", character);
         }
     }
 
@@ -35,37 +35,17 @@ fn get_blacklist_record_prompt(records: &Vec<Record>) -> String {
     prompt
 }
 
-fn get_blacklist_from_records(records: &Vec<Record>) -> Vec<&Record> {
-    let blacklist_records = records.iter().filter(|x| !x.get_download_audio()).collect();
-    blacklist_records
+fn _to_selection_options(records: &Vec<Record>) -> Vec<SelectionOption> {
+    let options: Vec<SelectionOption> = records.iter().map(|x| {
+        SelectionOption::new(x.get_id().to_string(), x.get_data().get_character().to_string())
+    }).collect();
+
+    options
 }
-
-fn get_mut_blacklist_from_records(records: &mut Vec<Record>) -> Vec<&mut Record> {
-    let blacklist_records = records.iter_mut().filter(|x| !x.get_download_audio()).collect();
-    blacklist_records
-}
-
-fn get_option_keys(records: &Vec<Record>) -> Vec<String> {
-    let option_keys = records.iter().map(|x| x.get_id().to_string()).collect();
-    option_keys
-}
-
-fn blacklist_contains(records: &Vec<Record>, id: &str) -> bool {
-    let blacklist_records = get_blacklist_from_records(records);
-    blacklist_records.iter().any(|x| x.get_id() == id)
-}
-
-// fn test(input_str: String) -> Option<&'static String> {
-//     Some(&input_str)
-// }
-
-// fn get_mut_record_by_id(records: &Vec<Record>, id: &str) -> Option<&'static mut Record> {
-//     let record = records.iter_mut().find(|x| x.get_id() == id);
-//     record
-// }
 
 pub fn select_from_blacklist_audio_menu(csv_records: &mut Vec<Record>) {
-    print_record_characters(&csv_records);
+    let mut selection_options = _to_selection_options(csv_records);
+    _print_record_characters(&selection_options);
 
     println!("Blacklist: [Enter] to continue, [-] to pop last selection]");
 
@@ -73,29 +53,43 @@ pub fn select_from_blacklist_audio_menu(csv_records: &mut Vec<Record>) {
     const MINUS_KEY: &str = "-";
     let default_err_msg = "Your response was not recognized. Please try again!";
     loop {
-        let mut options = get_option_keys(csv_records);
-        options.push(ENTER_KEY.to_string());
-        options.push(MINUS_KEY.to_string());
+        let mut keys: Vec<String> = vec![ENTER_KEY.to_string(), MINUS_KEY.to_string()];
+        let mut unselected_keys: Vec<String> = selection_options.iter()
+            .filter(|x| !x.get_selected())
+            .map(|x| x.get_key().to_string()).collect();
+        keys.append(&mut unselected_keys);
 
-        let selected_id: String = input()
-            .msg(get_blacklist_record_prompt(csv_records))
-            .inside(options)
+        let selected_key: String = input()
+            .msg(_get_blacklist_prompt(&selection_options))
+            .inside(keys)
             .err(default_err_msg)
             .get();
 
-        if ENTER_KEY.to_string() == selected_id {
-            break;
-        } else if MINUS_KEY.to_string() == selected_id {
-            let mut blacklist_records = get_mut_blacklist_from_records(csv_records);
-            if let Some(record) = blacklist_records.pop() {
-                record.set_download_audio(true);
-            }
-        } else if blacklist_contains(csv_records, &selected_id) {
-            println!("Your selection has been previously selected.");
-        } else {
-            if let Some(selected_record) = csv_records.iter_mut().find(|x| x.get_id() == &selected_id) {
-                selected_record.set_download_audio(false);
+        match selected_key.as_str() {
+            ENTER_KEY => break,
+            MINUS_KEY => {
+                // !!! learning point: understand mutable pointer
+                let mut option = selection_options.iter_mut().last().unwrap();
+                option.set_selected(false);
+            },
+            _ => {
+                let mut option = selection_options.iter_mut().find(|x| x.get_key() == selected_key).unwrap();
+                option.set_selected(true);
             }
         }
+    }
+
+    _update_csv_records_using_selection_options(csv_records, selection_options);
+}
+
+fn _update_csv_records_using_selection_options(records: &mut Vec<Record>, options: Vec<SelectionOption>) {
+    let option_map: HashMap<String, SelectionOption> = options.into_iter().map(|x| {
+        (x.get_key().to_string(), x)
+    }).collect();
+
+    for record in records.iter_mut() {
+        let option = option_map.get(record.get_id()).unwrap();
+
+        record.set_download_audio(!option.get_selected());
     }
 }
